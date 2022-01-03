@@ -35,11 +35,13 @@ namespace Omnipay\Pagarme\Message;
  */
 class VoidRequest extends RefundRequest
 {
-    public function getData()
+    /**
+     * @return array
+     * @throws \Omnipay\Common\Exception\InvalidRequestException
+     */
+    public function getData(): array
     {
         $this->validate('transactionReference');
-        $data = array();
-
-        return $data;
+        return [];
     }
 }

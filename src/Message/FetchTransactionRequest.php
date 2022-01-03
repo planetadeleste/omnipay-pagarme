@@ -27,36 +27,45 @@ namespace Omnipay\Pagarme\Message;
  */
 class FetchTransactionRequest extends AbstractRequest
 {
-    public function getData()
+    /**
+     * @return array
+     */
+    public function getData(): array
     {
-        $data = array();
-
-        return $data;
+        return [];
     }
-    
-    public function getQuery()
+
+    /**
+     * @return array
+     * @throws \Omnipay\Common\Exception\InvalidRequestException
+     */
+    public function getQuery(): array
     {
         $this->validate('transactionReference');
 
-        $data = array();
+        $data = [];
         $data['api_key'] = $this->getApiKey();
 
         return $data;
     }
-    
-    protected function getOptions()
+
+    /**
+     * @return array
+     * @throws \Omnipay\Common\Exception\InvalidRequestException
+     */
+    protected function getOptions(): array
     {
         $options['query'] = $this->getQuery();
          
         return $options;
     }
 
-    public function getEndpoint()
+    public function getEndpoint(): string
     {
         return $this->endpoint.'transactions/'.$this->getTransactionReference();
     }
 
-    public function getHttpMethod()
+    public function getHttpMethod(): string
     {
         return 'GET';
     }

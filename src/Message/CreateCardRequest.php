@@ -5,6 +5,12 @@
  */
 namespace Omnipay\Pagarme\Message;
 
+use Omnipay\Pagarme\Address;
+use Omnipay\Pagarme\Helper;
+use PagarmeCoreApiLib\Controllers\CustomersController;
+use PagarmeCoreApiLib\Models\CreateAddressRequest;
+use PagarmeCoreApiLib\Models\CreateCardRequest as CreateCardApiRequest;
+
 /**
  * Pagarme Create Credit Card Request
  *
@@ -44,26 +50,60 @@ namespace Omnipay\Pagarme\Message;
  * </code>
  *
  * @link https://docs.pagar.me/api/?shell#cartes
+ *
+ * @method CreateCardResponse send()
  */
 class CreateCardRequest extends AbstractRequest
 {
-    public function getData()
+    /**
+     * @return array
+     * @throws \Omnipay\Common\Exception\InvalidRequestException
+     * @throws \Omnipay\Common\Exception\InvalidCreditCardException
+     */
+    public function getData(): array
     {
-        if ($this->getCard()) {
+        $data = [];
+
+        $this->validate('customerReference');
+
+        if ($obCard = $this->getCard()) {
             $data = $this->getCardData();
-            if ($this->getCustomerReference()) {
-                $data['customer_id'] = $this->getCustomerReference();
+            if (!$obCard->getBillingAddressId() && $obCard->getBillingAddress1()) {
+                $data['billing_address'] = Address::createFromCard($obCard)->getParameters();
             }
+
         } elseif ($this->getCardHash()) {
-            $data['card_hash'] = $this->getCardHash();
+            $data['token'] = $this->getCardHash();
         } else {
             $this->validate('card_number');
         }
 
         return $data;
     }
+
+    /**
+     * @param $data
+     *
+     * @return \Omnipay\Pagarme\Message\CreateCardResponse
+     * @throws \PagarmeCoreApiLib\APIException
+     */
+    public function sendData($data): CreateCardResponse
+    {
+        $obCustomer = CustomersController::getInstance();
+        $obCardRequest = new CreateCardApiRequest();
+
+        if ($arBillingAddress = Helper::arrayGet($data, 'billing_address', null, 'is_array')) {
+            $obAddress = new CreateAddressRequest();
+            Helper::arrayToParams($obAddress, $arBillingAddress);
+            $obCardRequest->billingAddress = $obAddress;
+        }
+
+        /** @var \PagarmeCoreApiLib\Models\GetCardResponse $obResponse */
+        $obResponse = $obCustomer->createCard($this->getCustomerReference(), $obCardRequest);
+        return new CreateCardResponse($this, $obResponse->jsonSerialize());
+    }
     
-    public function getEndpoint()
+    public function getEndpoint(): string
     {
         return $this->endpoint . 'cards';
     }

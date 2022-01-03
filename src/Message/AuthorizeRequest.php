@@ -5,6 +5,15 @@
 
 namespace Omnipay\Pagarme\Message;
 
+use DeviceDetector\DeviceDetector;
+use Omnipay\Pagarme\Helper;
+use Omnipay\Pagarme\Traits\ShippingTrait;
+use PagarmeCoreApiLib\Controllers\OrdersController;
+use PagarmeCoreApiLib\Models\CreateDeviceRequest;
+use PagarmeCoreApiLib\Models\CreateOrderItemRequest;
+use PagarmeCoreApiLib\Models\CreateOrderRequest;
+use PagarmeCoreApiLib\Models\CreatePaymentRequest;
+
 /**
  * Pagarme Authorize Request
  *
@@ -88,153 +97,197 @@ namespace Omnipay\Pagarme\Message;
  *   }
  * </code>
  *
- * @see https://docs.pagar.me/capturing-card-data/
- * @see \Omnipay\Pagarme\Gateway
- * @see \Omnipay\Pagarme\Message\CaptureRequest
+ * @see  https://docs.pagar.me/capturing-card-data/
+ * @see  \Omnipay\Pagarme\Gateway
+ * @see  \Omnipay\Pagarme\Message\CaptureRequest
  * @link https://docs.pagar.me/api/?shell#objeto-transaction
+ *
+ * @method \Omnipay\Pagarme\Message\OrderResponse send()
  */
 class AuthorizeRequest extends AbstractRequest
 {
+    use ShippingTrait;
+
     /**
-     * Get postback URL.
-     *
-     * @return string
+     * @return array|mixed
+     * @throws \Omnipay\Common\Exception\InvalidRequestException
+     * @throws \Omnipay\Common\Exception\InvalidCreditCardException
      */
-    public function getPostbackUrl()
-    {
-        return $this->getParameter('postback_url');
-    }
-    
-    /**
-     * Set postback URL.
-     *
-     * @param string $value
-     * @return AuthorizeRequest provides a fluent interface.
-     */
-    public function setPostbackUrl($value)
-    {
-        return $this->setParameter('postback_url', $value);
-    }
-    
-    /**
-     * Get installments.
-     *
-     * @return integer the number of installments
-     */
-    public function getInstallments()
-    {
-        return $this->getParameter('installments');
-    }
-    
-    /**
-     * Set Installments.
-     *
-     * The number must be between 1 and 12.
-     * If the payment method is boleto defaults to 1.
-     *
-     * @param integer $value
-     * @return AuthorizeRequest provides a fluent interface.
-     */
-    public function setInstallments($value)
-    {
-        return $this->setParameter('installments', (int)$value);
-    }
-    
-    /**
-     * Get soft description.
-     *
-     * @return string small description
-     */
-    public function getSoftDescriptor()
-    {
-        return $this->getParameter('soft_descriptor');
-    }
-    
-    /**
-     * Set soft description.
-     *
-     * The Pagarme gateway allow 13 characters in the soft_descriptor.
-     * The provided string will be truncated if lengh > 13.
-     *
-     * @param string $value
-     * @return AuthorizeRequest provides a fluent interface.
-     */
-    public function setSoftDescriptor($value)
-    {
-        return $this->setParameter('soft_descriptor', substr($value, 0, 13));
-    }
-    
-    /**
-     * Get the boleto expiration date
-     *
-     * @return string boleto expiration date
-     */
-    public function getBoletoExpirationDate($format = 'Y-m-d\TH:i:s')
-    {
-        $value = $this->getParameter('boleto_expiration_date');
-        
-        return $value ? $value->format($format) : null;
-    }
-    
-    /**
-     * Set the boleto expiration date
-     *
-     * @param string $value defaults to atual date + 7 days
-     * @return AuthorizeRequest provides a fluent interface
-     */
-    public function setBoletoExpirationDate($value)
-    {
-        if ($value) {
-            $value = new \DateTime($value, new \DateTimeZone('UTC'));
-            $value = new \DateTime($value->format('Y-m-d\T03:00:00'), new \DateTimeZone('UTC'));
-        } else {
-            $value = null;
-        }
-        
-        return $this->setParameter('boleto_expiration_date', $value);
-    }
-    
     public function getData()
     {
-        $this->validate('amount');
-        
-        $data = array();
-        
+        $this->validate('amount', 'customerReference', 'paymentMethod');
+
+        $data = [];
+
+        $data['code'] = $this->getCode();
+        $data['customer_id'] = $this->getCustomerReference();
         $data['amount'] = $this->getAmountInteger();
-        $data['payment_method'] = $this->getPaymentMethod();
-        $data['postback_url'] = $this->getPostbackUrl();
-        $data['installments'] = $this->getInstallments();
-        $data['soft_descriptor'] = $this->getSoftDescriptor();
+        $data['antifraud_enabled'] = $this->getAntifraudEnabled();
         $data['metadata'] = $this->getMetadata();
-        if ($this->getPaymentMethod() && ($this->getPaymentMethod() == 'boleto')) {
-            if ($this->getBoletoExpirationDate()) {
-                $data['boleto_expiration_date'] = $this->getBoletoExpirationDate();
-            }
-            $data['payment_method'] = $this->getPaymentMethod();
-            if ($this->getCard()) {
-                $data = array_merge($data, $this->getCustomerData());
-            } elseif ($this->getCustomer()) {
-                $this->setCard($this->getCustomer());
-                $data = array_merge($data, $this->getCustomerData());
-            }
-        } else {
-            if ($this->getCard()) {
-                $data = array_merge($data, $this->getCardData(), $this->getCustomerData());
-            } elseif ($this->getCardHash()) {
-                $data['card_hash'] = $this->getCardHash();
-            } elseif ($this->getCardReference()) {
-                $data['card_id'] = $this->getCardReference();
-            } else {
-                $this->validate('card');
-            }
+        $data['closed'] = $this->getClosed();
+        $data['ip'] = $this->getClientIp();
+        $data['currency'] = 'BRL';
+
+        // Set device
+        if (!$sPlatform = $this->getDevice()) {
+            $obDd = new DeviceDetector($_SERVER['HTTP_USER_AGENT']);
+            $sPlatform = $obDd->getDeviceName();
         }
-        $data['capture'] = 'false';
-        
+        if (!empty($sPlatform)) {
+            $data['device'] = ['platform' => $sPlatform];
+        }
+
+        // Add Items
+        if (($arItems = $this->getItems()) && $arItems->count()) {
+            $data['items'] = $arItems->getData();
+        }
+
+        // Add payment method
+        $sPaymentMethod = strtolower($this->getPaymentMethod());
+        $arPaymentMethod = [];
+        switch ($sPaymentMethod) {
+            case 'boleto':
+                $arPaymentMethod = [
+                    'bank'            => $this->getIssuer(),
+                    'instructions'    => $this->getInstructions(),
+                    'due_at'          => $this->getDueAt(),
+                    'nosso_numero'    => $this->getNossoNumero(),
+                    'type'            => $this->getType(),
+                    'document_number' => $this->getDocumentNumber()
+                ];
+                break;
+
+            case 'credit_card':
+                $arPaymentMethod = [
+                    'installments'         => $this->getInstallments(),
+                    'statement_descriptor' => $this->getStatementDescriptor(),
+                    'operation_type'       => $this->getOperationType() ?? 'auth_only',
+                ];
+                if ($sCardId = $this->getCardId()) {
+                    $arPaymentMethod['card_id'] = $sCardId;
+                } elseif ($sCartToken = $this->getCardToken()) {
+                    $arPaymentMethod['card_token'] = $sCartToken;
+                } else {
+                    $arPaymentMethod['card'] = $this->getCardData();
+                }
+                break;
+
+            case 'bank_transfer':
+                $arPaymentMethod['bank'] = $this->getIssuer();
+                break;
+
+            case 'pix':
+                if ($sExpireIn = $this->getExpiresIn()) {
+                    $arPaymentMethod['expire_in'] = $sExpireIn;
+                } elseif ($sExpireAt = $this->getExpiresAt()) {
+                    $arPaymentMethod['expire_at'] = $sExpireAt;
+                }
+
+                if ($arAdditionalData = $this->getAdditionalInformation()) {
+                    $arPaymentMethod['additional_information'] = $arAdditionalData;
+                }
+                break;
+        }
+        $arPayment = [
+            'payment_method' => $sPaymentMethod,
+            $sPaymentMethod  => $arPaymentMethod
+        ];
+        $data['payments'] = [$arPayment];
+
+        // Add shipping
+        if ($this->getRecipientName() && $this->getShippingType() && $this->getShippingAddress()) {
+            $data['shipping'] = $this->getShippingData();
+        }
+
         return $data;
     }
-    
-    public function getEndpoint()
+
+    /**
+     * @return bool
+     */
+    public function getClosed(): bool
     {
-        return $this->endpoint.'transactions';
+        return (bool)$this->getParameter('closed');
     }
+
+    /**
+     * @return string|null
+     */
+    public function getDevice(): ?string
+    {
+        return $this->getParameter('device');
+    }
+
+    /**
+     * @param $data
+     *
+     * @return \Omnipay\Pagarme\Message\OrderResponse
+     * @throws \PagarmeCoreApiLib\APIException
+     */
+    public function sendData($data): OrderResponse
+    {
+        $obOrdersController = OrdersController::getInstance();
+
+        // Set Items
+        $arItems = [];
+        foreach ($data['items'] as $arItem) {
+            $obItem = new CreateOrderItemRequest();
+            Helper::arrayToParams($obItem, $arItem);
+            $arItems[] = $obItem;
+        }
+        Helper::arraySet($data, 'items', $arItems);
+
+        // Set Payments
+        $arPayments = [];
+        foreach ($data['payments'] as $arPayment) {
+            $arPayments[] = Helper::toPaymentRequest($arPayment);
+        }
+        Helper::arraySet($data, 'payments', $arPayments);
+
+        // Set Device
+        if ($arDevice = Helper::arrayGet($data, 'device', null, 'is_array')) {
+            $obDeviceRequest = Helper::arrayToParams(new CreateDeviceRequest(), $arDevice);
+            Helper::arraySet($data, 'device', $obDeviceRequest);
+        }
+
+        // Set Shipping
+        if ($arShipping = Helper::arrayGet($data, 'shipping', null, 'is_array')) {
+            $obShippingRequest = Helper::toShippingRequest($arShipping);
+            Helper::arraySet($data, 'shipping', $obShippingRequest);
+        }
+
+        /** @var CreateOrderRequest $obOrderRequest */
+        /** @var \PagarmeCoreApiLib\Models\GetOrderResponse $obResponse */
+
+        $obOrderRequest = Helper::arrayToParams(new CreateOrderRequest(), $data);
+        $obResponse = $obOrdersController->createOrder($obOrderRequest);
+
+        return new OrderResponse($this, $obResponse->jsonSerialize());
+    }
+
+    public function getEndpoint(): string
+    {
+        return $this->endpoint.'orders';
+    }
+
+    /**
+     * @param bool $sValue
+     *
+     * @return $this
+     */
+    public function setClosed(bool $sValue): self
+    {
+        return $this->setParameter('closed', $sValue);
+    }
+
+    /**
+     * @param string $sValue
+     *
+     * @return $this
+     */
+    public function setDevice(string $sValue): self
+    {
+        return $this->setParameter('device', $sValue);
+    }
+
 }

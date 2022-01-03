@@ -36,16 +36,18 @@ namespace Omnipay\Pagarme\Message;
  */
 class RefundRequest extends AbstractRequest
 {
-    public function getData()
+    /**
+     * @return array
+     * @throws \Omnipay\Common\Exception\InvalidRequestException
+     */
+    public function getData(): array
     {
         $this->validate('transactionReference');
 
-        $data = array();
-
-        return $data;
+        return [];
     }
 
-    public function getEndpoint()
+    public function getEndpoint(): string
     {
         return $this->endpoint.'transactions/'.$this->getTransactionReference().'/refund';
     }
