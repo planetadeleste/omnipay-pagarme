@@ -13,6 +13,7 @@ use Omnipay\Pagarme\Message\PurchaseRequest;
 use Omnipay\Pagarme\Message\RefundRequest;
 use Omnipay\Pagarme\Message\Response;
 use Omnipay\Pagarme\Message\VoidRequest;
+use PagarmeCoreApiLib\Configuration;
 
 /**
  * Pagarme Gateway
@@ -90,6 +91,7 @@ use Omnipay\Pagarme\Message\VoidRequest;
  * @link https://docs.pagar.me/
  *
  * @method AuthorizeRequest      authorize(array $options = [])
+ * @method PurchaseRequest       purchase(array $options = [])
  * @method CaptureRequest        capture(array $options = [])
  * @method CreateCardRequest     createCard(array $options = [])
  * @method CreateCustomerRequest createCustomer(array $options = [])
@@ -136,7 +138,20 @@ class Gateway extends AbstractGateway
      */
     public function setApiKey(string $value): Gateway
     {
-        return $this->setParameter('apiKey', $value);
+        $this->setParameter('apiKey', $value);
+        $this->setAuth();
+
+        return $this;
+    }
+
+    public function setAuth()
+    {
+        if (!$this->getApiKey()) {
+            return;
+        }
+
+        Configuration::$basicAuthPassword = '';
+        Configuration::$basicAuthUserName = $this->getApiKey();
     }
 
     /**
@@ -154,7 +169,9 @@ class Gateway extends AbstractGateway
             $arOptions = [$arOptions];
         }
 
-        $arOptions['apiKey'] = $this->getApiKey();
+        if ($this->getApiKey()) {
+            $arOptions['apiKey'] = $this->getApiKey();
+        }
 
         $obCreateRequest = $this->createRequest($sClass, $arOptions);
         $obCreateRequest->initialize($arOptions);

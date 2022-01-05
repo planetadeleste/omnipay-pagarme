@@ -8,11 +8,11 @@ namespace Omnipay\Pagarme\Message;
 use DeviceDetector\DeviceDetector;
 use Omnipay\Pagarme\Helper;
 use Omnipay\Pagarme\Traits\ShippingTrait;
+use PagarmeCoreApiLib\APIException;
 use PagarmeCoreApiLib\Controllers\OrdersController;
 use PagarmeCoreApiLib\Models\CreateDeviceRequest;
 use PagarmeCoreApiLib\Models\CreateOrderItemRequest;
 use PagarmeCoreApiLib\Models\CreateOrderRequest;
-use PagarmeCoreApiLib\Models\CreatePaymentRequest;
 
 /**
  * Pagarme Authorize Request
@@ -115,18 +115,24 @@ class AuthorizeRequest extends AbstractRequest
      */
     public function getData()
     {
-        $this->validate('amount', 'customerReference', 'paymentMethod');
+        $this->validate('amount', 'paymentMethod');
 
         $data = [];
 
         $data['code'] = $this->getCode();
-        $data['customer_id'] = $this->getCustomerReference();
         $data['amount'] = $this->getAmountInteger();
         $data['antifraud_enabled'] = $this->getAntifraudEnabled();
         $data['metadata'] = $this->getMetadata();
         $data['closed'] = $this->getClosed();
         $data['ip'] = $this->getClientIp();
         $data['currency'] = 'BRL';
+
+
+        if ($iCustomerId = $this->getCustomerReference()) {
+            $data['customer_id'] = $iCustomerId;
+        } else {
+            $data['customer'] = $this->getCustomer();
+        }
 
         // Set device
         if (!$sPlatform = $this->getDevice()) {
@@ -178,9 +184,9 @@ class AuthorizeRequest extends AbstractRequest
 
             case 'pix':
                 if ($sExpireIn = $this->getExpiresIn()) {
-                    $arPaymentMethod['expire_in'] = $sExpireIn;
+                    $arPaymentMethod['expires_in'] = $sExpireIn;
                 } elseif ($sExpireAt = $this->getExpiresAt()) {
-                    $arPaymentMethod['expire_at'] = $sExpireAt;
+                    $arPaymentMethod['expires_at'] = $sExpireAt;
                 }
 
                 if ($arAdditionalData = $this->getAdditionalInformation()) {
@@ -226,43 +232,54 @@ class AuthorizeRequest extends AbstractRequest
      */
     public function sendData($data): OrderResponse
     {
-        $obOrdersController = OrdersController::getInstance();
+//        $data = array_filter($data);
 
-        // Set Items
-        $arItems = [];
-        foreach ($data['items'] as $arItem) {
-            $obItem = new CreateOrderItemRequest();
-            Helper::arrayToParams($obItem, $arItem);
-            $arItems[] = $obItem;
+        try {
+
+            $obOrdersController = OrdersController::getInstance();
+
+            // Set Items
+            $arItems = [];
+            foreach ($data['items'] as $arItem) {
+                $obItem = new CreateOrderItemRequest();
+                Helper::arrayToParams($obItem, $arItem);
+                $arItems[] = $obItem;
+            }
+            Helper::arraySet($data, 'items', $arItems);
+
+            // Set Payments
+            $arPayments = [];
+            foreach ($data['payments'] as $arPayment) {
+                $arPayments[] = Helper::toPaymentRequest($arPayment);
+            }
+            Helper::arraySet($data, 'payments', $arPayments);
+
+            // Set Device
+            if ($arDevice = Helper::arrayGet($data, 'device', null, 'is_array')) {
+                $obDeviceRequest = Helper::arrayToParams(new CreateDeviceRequest(), $arDevice);
+                Helper::arraySet($data, 'device', $obDeviceRequest);
+            }
+
+            // Set Shipping
+            if ($arShipping = Helper::arrayGet($data, 'shipping', null, 'is_array')) {
+                $obShippingRequest = Helper::toShippingRequest($arShipping);
+                Helper::arraySet($data, 'shipping', $obShippingRequest);
+            }
+
+            /** @var CreateOrderRequest $obOrderRequest */
+            /** @var \PagarmeCoreApiLib\Models\GetOrderResponse $obResponse */
+
+            $obOrderRequest = Helper::arrayToParams(new CreateOrderRequest(), $data);
+            $obResponse = $obOrdersController->createOrder($obOrderRequest);
+
+            return new OrderResponse($this, $obResponse->jsonSerialize());
+        } catch (APIException $ex) {
+            $sResponseBody = $ex->getContext()->getResponse()->getRawBody();
+            $arResponse = json_decode($sResponseBody, true);
+            debug($arResponse);
+
+            return new OrderResponse($this, $arResponse);
         }
-        Helper::arraySet($data, 'items', $arItems);
-
-        // Set Payments
-        $arPayments = [];
-        foreach ($data['payments'] as $arPayment) {
-            $arPayments[] = Helper::toPaymentRequest($arPayment);
-        }
-        Helper::arraySet($data, 'payments', $arPayments);
-
-        // Set Device
-        if ($arDevice = Helper::arrayGet($data, 'device', null, 'is_array')) {
-            $obDeviceRequest = Helper::arrayToParams(new CreateDeviceRequest(), $arDevice);
-            Helper::arraySet($data, 'device', $obDeviceRequest);
-        }
-
-        // Set Shipping
-        if ($arShipping = Helper::arrayGet($data, 'shipping', null, 'is_array')) {
-            $obShippingRequest = Helper::toShippingRequest($arShipping);
-            Helper::arraySet($data, 'shipping', $obShippingRequest);
-        }
-
-        /** @var CreateOrderRequest $obOrderRequest */
-        /** @var \PagarmeCoreApiLib\Models\GetOrderResponse $obResponse */
-
-        $obOrderRequest = Helper::arrayToParams(new CreateOrderRequest(), $data);
-        $obResponse = $obOrdersController->createOrder($obOrderRequest);
-
-        return new OrderResponse($this, $obResponse->jsonSerialize());
     }
 
     public function getEndpoint(): string

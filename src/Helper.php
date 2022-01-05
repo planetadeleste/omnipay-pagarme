@@ -158,4 +158,27 @@ class Helper extends \Omnipay\Common\Helper
 
         return self::arrayToParams(new CreatePaymentRequest(), $arParams);
     }
+
+    /**
+     * @param string $sPhone
+     *
+     * @return array = ["area_code" => "21", "number" => "000000000"]
+     */
+    public static function getPhone(string $sPhone): array
+    {
+        $arPhone = [];
+        $phone = preg_replace("/[^0-9]/", "", $sPhone);
+        if (substr($phone, 0, 1) === "0") {
+            $arPhone['area_code'] = substr($phone, 1, 2);
+            $arPhone['number'] = substr($phone, 3);
+        } elseif (strlen($phone) < 10) {
+            $arPhone['area_code'] = '';
+            $arPhone['number'] = $phone;
+        } else {
+            $arPhone['area_code'] = substr($phone, 0, 2);
+            $arPhone['number'] = substr($phone, 2);
+        }
+
+        return $arPhone;
+    }
 }

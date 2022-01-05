@@ -2,6 +2,8 @@
 
 namespace Omnipay\Pagarme\Message;
 
+use Omnipay\Common\CreditCard as Card;
+use Omnipay\Pagarme\Helper;
 use Omnipay\Pagarme\ItemBag;
 use Omnipay\Pagarme\Traits\BoletoPaymentTrait;
 use Omnipay\Pagarme\Traits\CardPaymentTrait;
@@ -40,11 +42,19 @@ abstract class AbstractRequest extends BaseAbstractRequest
     public function initialize(array $parameters = []): self
     {
         parent::initialize($parameters);
+        $this->setAuth();
+
+        return $this;
+    }
+
+    public function setAuth()
+    {
+        if (!$this->getApiKey()) {
+            return;
+        }
 
         Configuration::$basicAuthPassword = '';
         Configuration::$basicAuthUserName = $this->getApiKey();
-
-        return $this;
     }
 
     /**
@@ -66,7 +76,7 @@ abstract class AbstractRequest extends BaseAbstractRequest
      */
     public function setCard($value): self
     {
-        if ($value && !$value instanceof CreditCard) {
+        if ($value && !$value instanceof Card) {
             $value = new CreditCard($value);
         }
 
@@ -98,7 +108,10 @@ abstract class AbstractRequest extends BaseAbstractRequest
      */
     public function setApiKey(string $value): AbstractRequest
     {
-        return $this->setParameter('apiKey', $value);
+        $this->setParameter('apiKey', $value);
+        $this->setAuth();
+
+        return $this;
     }
 
     /**
@@ -106,7 +119,7 @@ abstract class AbstractRequest extends BaseAbstractRequest
      *
      * @return array customer data
      */
-    public function getCustomer(): array
+    public function getCustomer(): ?array
     {
         return $this->getParameter('customer');
     }
@@ -128,7 +141,7 @@ abstract class AbstractRequest extends BaseAbstractRequest
      *
      * @return string customer reference
      */
-    public function getCustomerReference(): string
+    public function getCustomerReference(): ?string
     {
         return $this->getParameter('customerReference');
     }
@@ -346,7 +359,7 @@ abstract class AbstractRequest extends BaseAbstractRequest
             $data['customer']['address'] = $arAddress;
         }
 
-        $arrayPhone = $this->extractDddPhone($card->getPhone());
+        $arrayPhone = Helper::getPhone($card->getPhone());
         if (!empty($arrayPhone['area_code'])) {
             $this->setHomePhone($arrayPhone);
             $data['customer']['phones'] = ['home_phone' => $arrayPhone];
@@ -392,35 +405,6 @@ abstract class AbstractRequest extends BaseAbstractRequest
     public function getAddress(): ?Address
     {
         return $this->getParameter('address');
-    }
-
-    /**
-     * Separate DDD from phone numbers in an array
-     * containing two keys:
-     *
-     * * ddd
-     * * number
-     *
-     * @param string|integer $phoneNumber phone number with DDD (byref)
-     *
-     * @return array the Phone number and the DDD with two digits
-     */
-    protected function extractDddPhone($phoneNumber): array
-    {
-        $arrayPhone = [];
-        $phone = preg_replace("/[^0-9]/", "", $phoneNumber);
-        if (substr($phone, 0, 1) === "0") {
-            $arrayPhone['area_code'] = substr($phone, 1, 2);
-            $arrayPhone['number'] = substr($phone, 3);
-        } elseif (strlen($phone) < 10) {
-            $arrayPhone['area_code'] = '';
-            $arrayPhone['number'] = $phone;
-        } else {
-            $arrayPhone['area_code'] = substr($phone, 0, 2);
-            $arrayPhone['number'] = substr($phone, 2);
-        }
-
-        return $arrayPhone;
     }
 
     /**

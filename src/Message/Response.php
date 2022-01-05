@@ -71,8 +71,9 @@ class Response extends AbstractResponse
             return null;
         }
 
-        if ($this->getErrors()) {
-            return $this->message;
+        if (($arErrors = $this->getErrors()) && !empty($arErrors)) {
+            $sMessage = is_array($arErrors) ? array_values($arErrors)[0] : $arErrors;
+            return is_array($sMessage) ? $sMessage[0] : $sMessage;
         }
 
         return $this->data['refuse_reason'];
@@ -85,7 +86,7 @@ class Response extends AbstractResponse
      */
     public function isSuccessful(): bool
     {
-        return empty($this->errors);
+        return empty($this->getErrors());
     }
 
     /**

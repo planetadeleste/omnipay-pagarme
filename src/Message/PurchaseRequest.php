@@ -70,8 +70,8 @@ class PurchaseRequest extends AuthorizeRequest
      */
     public function getData()
     {
-        $data = parent::getData();
-        $data['capture'] = 'true';
-        return $data;
+        $this->setOperationType('auth_and_capture');
+
+        return parent::getData();
     }
 }
