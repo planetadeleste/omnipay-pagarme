@@ -7,12 +7,10 @@ use Omnipay\Pagarme\Message\AuthorizeRequest;
 use Omnipay\Pagarme\Message\CaptureRequest;
 use Omnipay\Pagarme\Message\CreateCardRequest;
 use Omnipay\Pagarme\Message\CreateCustomerRequest;
-use Omnipay\Pagarme\Message\FetchTransactionRequest;
-use Omnipay\Pagarme\Message\InstallmentsRequest;
+use Omnipay\Pagarme\Message\CreateHookRequest;
+use Omnipay\Pagarme\Message\FetchHookRequest;
+use Omnipay\Pagarme\Message\ListHookRequest;
 use Omnipay\Pagarme\Message\PurchaseRequest;
-use Omnipay\Pagarme\Message\RefundRequest;
-use Omnipay\Pagarme\Message\Response;
-use Omnipay\Pagarme\Message\VoidRequest;
 use PagarmeCoreApiLib\Configuration;
 
 /**
@@ -95,6 +93,9 @@ use PagarmeCoreApiLib\Configuration;
  * @method CaptureRequest        capture(array $options = [])
  * @method CreateCardRequest     createCard(array $options = [])
  * @method CreateCustomerRequest createCustomer(array $options = [])
+ * @method CreateHookRequest     createHook(array $options = [])
+ * @method FetchHookRequest      fetchHook(array $options = [])
+ * @method ListHookRequest       listHook(array $options = [])
  */
 class Gateway extends AbstractGateway
 {
@@ -132,7 +133,7 @@ class Gateway extends AbstractGateway
      * Setting the testMode flag on this gateway has no effect.  To
      * use test mode just use your test mode API key.
      *
-     * @param string $value
+     * @param  string  $value
      *
      * @return Gateway provides a fluent interface.
      */
@@ -155,8 +156,21 @@ class Gateway extends AbstractGateway
     }
 
     /**
-     * @param string $name
-     * @param array  $arguments
+     * Get the gateway API Key
+     *
+     * Authentication is by means of a single secret API key set as
+     * the apiKey parameter when creating the gateway object.
+     *
+     * @return string
+     */
+    public function getApiKey(): ?string
+    {
+        return $this->getParameter('apiKey');
+    }
+
+    /**
+     * @param  string  $name
+     * @param  array   $arguments
      *
      * @return \Omnipay\Common\Message\AbstractRequest
      */
@@ -177,18 +191,5 @@ class Gateway extends AbstractGateway
         $obCreateRequest->initialize($arOptions);
 
         return $obCreateRequest;
-    }
-
-    /**
-     * Get the gateway API Key
-     *
-     * Authentication is by means of a single secret API key set as
-     * the apiKey parameter when creating the gateway object.
-     *
-     * @return string
-     */
-    public function getApiKey(): ?string
-    {
-        return $this->getParameter('apiKey');
     }
 }

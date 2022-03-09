@@ -121,7 +121,17 @@ class OrderResponse extends Response
 
     public function getStatus(): string
     {
-        return strtoupper($this->status);
+        $sStatus = $this->status;
+        if (!empty($this->charges)) {
+            $arCharges = is_array($this->charges) ? $this->charges : [$this->charges];
+            foreach ($arCharges as $obCharge) {
+                if ($obCharge->status !== $sStatus) {
+                    $sStatus = $obCharge->status;
+                }
+            }
+        }
+
+        return strtoupper($sStatus);
     }
 
     /**

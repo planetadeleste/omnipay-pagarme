@@ -3,15 +3,15 @@
 namespace Omnipay\Pagarme\Message;
 
 use Omnipay\Common\CreditCard as Card;
+use Omnipay\Common\Message\AbstractRequest as BaseAbstractRequest;
+use Omnipay\Pagarme\Address;
+use Omnipay\Pagarme\CreditCard;
 use Omnipay\Pagarme\Helper;
 use Omnipay\Pagarme\ItemBag;
 use Omnipay\Pagarme\Traits\BoletoPaymentTrait;
 use Omnipay\Pagarme\Traits\CardPaymentTrait;
 use Omnipay\Pagarme\Traits\CashPaymentTrait;
 use Omnipay\Pagarme\Traits\PixPaymentTrait;
-use Omnipay\Pagarme\Address;
-use Omnipay\Pagarme\CreditCard;
-use Omnipay\Common\Message\AbstractRequest as BaseAbstractRequest;
 use PagarmeCoreApiLib\Configuration;
 
 /**
@@ -35,7 +35,7 @@ abstract class AbstractRequest extends BaseAbstractRequest
     protected $endpoint = 'https://api.pagar.me/core/v5/';
 
     /**
-     * @param array $parameters
+     * @param  array  $parameters
      *
      * @return $this|\Omnipay\Pagarme\Message\AbstractRequest
      */
@@ -68,15 +68,32 @@ abstract class AbstractRequest extends BaseAbstractRequest
     }
 
     /**
+     * Get one parameter.
+     *
+     * @param  string  $key      Parameter key
+     * @param  mixed   $default  The default value if the parameter key does not exist
+     *
+     * @return mixed A single parameter value.
+     */
+    protected function getParameter($key, $default = null)
+    {
+        return $this->parameters->get($key, $default);
+    }
+
+    /**
      * Sets the card.
      *
-     * @param CreditCard|array $value
+     * @param  CreditCard|array  $value
      *
      * @return $this
      */
     public function setCard($value): self
     {
-        if ($value && !$value instanceof Card) {
+        if ($value instanceof Card) {
+            $value = $value->getParameters();
+        }
+
+        if (is_array($value)) {
             $value = new CreditCard($value);
         }
 
@@ -86,7 +103,7 @@ abstract class AbstractRequest extends BaseAbstractRequest
     /**
      * Set the items in this order
      *
-     * @param ItemBag|array $items An array of items in this order
+     * @param  ItemBag|array  $items  An array of items in this order
      *
      * @return $this
      */
@@ -102,7 +119,7 @@ abstract class AbstractRequest extends BaseAbstractRequest
     /**
      * Set API key
      *
-     * @param string $value
+     * @param  string  $value
      *
      * @return AbstractRequest provides a fluent interface.
      */
@@ -127,7 +144,7 @@ abstract class AbstractRequest extends BaseAbstractRequest
     /**
      * Set Customer data
      *
-     * @param array $value
+     * @param  array  $value
      *
      * @return AbstractRequest provides a fluent interface.
      */
@@ -171,7 +188,7 @@ abstract class AbstractRequest extends BaseAbstractRequest
 
     /**
      *
-     * @param array $value
+     * @param  array  $value
      *
      * @return $this
      */
@@ -192,6 +209,11 @@ abstract class AbstractRequest extends BaseAbstractRequest
         return 'POST';
     }
 
+    public function getQuery(): array
+    {
+        return [];
+    }
+
     /**
      * @param $data
      *
@@ -201,14 +223,22 @@ abstract class AbstractRequest extends BaseAbstractRequest
     {
         $headers = [
             'Authorization' => 'Basic '.base64_encode($this->getApiKey().':'),
-            'Content-Type'  => 'application/json'
+            'Content-Type' => 'application/json'
         ];
+
+        $sEndpoint = $this->getEndpoint();
+
+        if (($arQuery = $this->getQuery()) && !empty($arQuery)) {
+            $sEndpoint .= '?' . http_build_query($arQuery);
+        }
+
         $httpRequest = $this->httpClient->request(
             $this->getHttpMethod(),
-            $this->getEndpoint(),
+            $sEndpoint,
             $headers,
             json_encode($data),
         );
+
         $payload = json_decode($httpRequest->getBody()->getContents(), true);
 
         return $this->createResponse($payload);
@@ -233,7 +263,7 @@ abstract class AbstractRequest extends BaseAbstractRequest
     }
 
     /**
-     * @param array $sValue
+     * @param  array  $sValue
      *
      * @return $this
      */
@@ -251,7 +281,7 @@ abstract class AbstractRequest extends BaseAbstractRequest
     }
 
     /**
-     * @param mixed $sValue
+     * @param  mixed  $sValue
      *
      * @return $this
      */
@@ -269,7 +299,7 @@ abstract class AbstractRequest extends BaseAbstractRequest
     }
 
     /**
-     * @param bool $sValue
+     * @param  bool  $sValue
      *
      * @return $this
      */
@@ -283,7 +313,7 @@ abstract class AbstractRequest extends BaseAbstractRequest
      */
     public function getAntifraudEnabled(): bool
     {
-        return (bool)$this->getParameter('antifraud_enabled');
+        return (bool) $this->getParameter('antifraud_enabled');
     }
 
     /**
@@ -327,9 +357,9 @@ abstract class AbstractRequest extends BaseAbstractRequest
     /**
      * Get the card.
      *
-     * @return CreditCard
+     * @return CreditCard|\Omnipay\Common\CreditCard|null
      */
-    public function getCard(): ?CreditCard
+    public function getCard()
     {
         return $this->getParameter('card');
     }
@@ -378,10 +408,10 @@ abstract class AbstractRequest extends BaseAbstractRequest
         }
 
         $arAddress = [
-            'line_1'  => $obCard->getAddress1(),
-            'line_2'  => $obCard->getAddress2(),
-            'city'    => $obCard->getCity(),
-            'state'   => $obCard->getState(),
+            'line_1' => $obCard->getAddress1(),
+            'line_2' => $obCard->getAddress2(),
+            'city' => $obCard->getCity(),
+            'state' => $obCard->getState(),
             'country' => $obCard->getCountry(),
         ];
 
@@ -389,7 +419,7 @@ abstract class AbstractRequest extends BaseAbstractRequest
     }
 
     /**
-     * @param array $sValue
+     * @param  array  $sValue
      *
      * @return $this
      */
@@ -408,7 +438,7 @@ abstract class AbstractRequest extends BaseAbstractRequest
     }
 
     /**
-     * @param array $sValue
+     * @param  array  $sValue
      *
      * @return $this
      */
@@ -428,7 +458,7 @@ abstract class AbstractRequest extends BaseAbstractRequest
      * with the information in the given order and separated
      * by commas.
      *
-     * @param string $address
+     * @param  string  $address
      *
      * @return array containing the street, street_number and complementary
      */
