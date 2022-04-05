@@ -8,7 +8,9 @@ use Omnipay\Pagarme\Message\CaptureRequest;
 use Omnipay\Pagarme\Message\CreateCardRequest;
 use Omnipay\Pagarme\Message\CreateCustomerRequest;
 use Omnipay\Pagarme\Message\CreateHookRequest;
+use Omnipay\Pagarme\Message\FetchCustomerCardRequest;
 use Omnipay\Pagarme\Message\FetchHookRequest;
+use Omnipay\Pagarme\Message\ListCustomerCardsRequest;
 use Omnipay\Pagarme\Message\ListHookRequest;
 use Omnipay\Pagarme\Message\PurchaseRequest;
 use PagarmeCoreApiLib\Configuration;
@@ -88,14 +90,16 @@ use PagarmeCoreApiLib\Configuration;
  * @see  \Omnipay\Pagarme\Message\AbstractRequest
  * @link https://docs.pagar.me/
  *
- * @method AuthorizeRequest      authorize(array $options = [])
- * @method PurchaseRequest       purchase(array $options = [])
- * @method CaptureRequest        capture(array $options = [])
- * @method CreateCardRequest     createCard(array $options = [])
- * @method CreateCustomerRequest createCustomer(array $options = [])
- * @method CreateHookRequest     createHook(array $options = [])
- * @method FetchHookRequest      fetchHook(array $options = [])
- * @method ListHookRequest       listHook(array $options = [])
+ * @method AuthorizeRequest         authorize(array $options = [])
+ * @method PurchaseRequest          purchase(array $options = [])
+ * @method CaptureRequest           capture(array $options = [])
+ * @method CreateCardRequest        createCard(array $options = [])
+ * @method CreateCustomerRequest    createCustomer(array $options = [])
+ * @method CreateHookRequest        createHook(array $options = [])
+ * @method FetchHookRequest         fetchHook(array $options = [])
+ * @method ListHookRequest          listHook(array $options = [])
+ * @method ListCustomerCardsRequest listCustomerCards(array $options = [])
+ * @method FetchCustomerCardRequest fetchCustomerCard(array $options = [])
  */
 class Gateway extends AbstractGateway
 {
@@ -145,7 +149,7 @@ class Gateway extends AbstractGateway
         return $this;
     }
 
-    public function setAuth()
+    public function setAuth(): void
     {
         if (!$this->getApiKey()) {
             return;
