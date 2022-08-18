@@ -2,6 +2,10 @@
 
 namespace Omnipay\Pagarme\Message;
 
+use Omnipay\Pagarme\Helper;
+use PagarmeCoreApiLib\Controllers\ChargesController;
+use PagarmeCoreApiLib\Models\CreateChargeRequest;
+
 /**
  * Pagarme Capture Request
  *
@@ -19,21 +23,46 @@ namespace Omnipay\Pagarme\Message;
  * </code>
  *
  * @see Omnipay\Pagarme\Message\AuthorizeRequest
+ *
+ * @method \Omnipay\Pagarme\Message\ChargeResponse send()
  */
 class CaptureRequest extends AbstractRequest
 {
-    public function getData()
+    /**
+     * @return array
+     * @throws \Omnipay\Common\Exception\InvalidRequestException
+     */
+    public function getData(): array
     {
         $this->validate('transactionReference');
-        $data = array();
-        $data['id_ou_token'] = $this->getTransactionReference();
-        $data['amount']      = $this->getAmountInteger();
+
+        $data = [];
+
+        if ($sAmount = $this->getAmountInteger()) {
+            $data['amount'] = $sAmount;
+        }
+
+        if ($sCode = $this->getCode()) {
+            $data['code'] = $sCode;
+        }
 
         return $data;
     }
 
-    public function getEndpoint()
+    /**
+     * @param array $data
+     *
+     * @return \Omnipay\Pagarme\Message\ChargeResponse
+     * @throws \PagarmeCoreApiLib\APIException
+     */
+    public function sendData($data): ChargeResponse
     {
-        return $this->endpoint.'transactions/'.$this->getTransactionReference().'/capture';
+        $obChargesController = ChargesController::getInstance();
+        $obChargesRequest = Helper::arrayToParams(new CreateChargeRequest(), $data);
+
+        /** @var \PagarmeCoreApiLib\Models\GetChargeResponse $obResponse */
+        $obResponse = $obChargesController->captureCharge($this->getTransactionReference(), $obChargesRequest);
+
+        return new ChargeResponse($this, $obResponse->jsonSerialize());
     }
 }

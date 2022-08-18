@@ -3,6 +3,7 @@
 namespace Omnipay\Pagarme\Message;
 
 use Omnipay\Common\Message\AbstractResponse;
+use Omnipay\Pagarme\Traits\HasAttributeTrait;
 
 /**
  * Pagarme Response
@@ -10,34 +11,23 @@ use Omnipay\Common\Message\AbstractResponse;
  * This is the response class for all Pagarme requests.
  *
  * @see \Omnipay\Pagarme\Gateway
+ *
+ * @property-read string $id
+ * @property-read string $message
+ * @property-read array  $errors
  */
 class Response extends AbstractResponse
 {
-    /**
-     * Is the transaction successful?
-     *
-     * @return bool
-     */
-    public function isSuccessful()
-    {
-        if (isset($this->data['object']) && 'transaction' === $this->data['object']) {
-            return !($this->data['status'] == 'refused');
-        }
-        return !isset($this->data['errors']);
-    }
+    use HasAttributeTrait;
 
     /**
      * Get the transaction reference.
      *
      * @return string|null
      */
-    public function getTransactionReference()
+    public function getTransactionReference(): ?string
     {
-        if (isset($this->data['object']) && 'transaction' === $this->data['object']) {
-            return $this->data['id'];
-        }
-
-        return null;
+        return $this->id;
     }
 
     /**
@@ -45,10 +35,10 @@ class Response extends AbstractResponse
      *
      * @return string|null
      */
-    public function getCardReference()
+    public function getCardReference(): ?string
     {
         if (isset($this->data['object']) && 'card' === $this->data['object']) {
-            if (! empty($this->data['id'])) {
+            if (!empty($this->data['id'])) {
                 return $this->data['id'];
             }
         } elseif (isset($this->data['object']) && 'transaction' === $this->data['object']) {
@@ -63,23 +53,9 @@ class Response extends AbstractResponse
      *
      * @return string|null
      */
-    public function getCustomerReference()
+    public function getReferenceId(): ?string
     {
-        if (isset($this->data['object']) && 'customer' === $this->data['object']) {
-            return $this->data['id'];
-        }
-        if (isset($this->data['object']) && 'transaction' === $this->data['object']) {
-            if (! empty($this->data['customer'])) {
-                return $this->data['customer']['id'];
-            }
-        }
-        if (isset($this->data['object']) && 'card' === $this->data['object']) {
-            if (! empty($this->data['customer'])) {
-                return $this->data['customer']['id'];
-            }
-        }
-
-        return null;
+        return $this->id;
     }
 
     /**
@@ -89,17 +65,36 @@ class Response extends AbstractResponse
      *
      * @return string|null
      */
-    public function getMessage()
+    public function getMessage(): ?string
     {
-        if (!$this->isSuccessful()) {
-            if (isset($this->data['errors'])) {
-                return $this->data['errors'][0]['message'];
-            } else {
-                return $this->data['refuse_reason'];
-            }
+        if ($this->isSuccessful()) {
+            return null;
         }
 
-        return null;
+        if (($arErrors = $this->getErrors()) && !empty($arErrors)) {
+            $sMessage = is_array($arErrors) ? array_values($arErrors)[0] : $arErrors;
+            return is_array($sMessage) ? $sMessage[0] : $sMessage;
+        }
+
+        return $this->data['refuse_reason'];
+    }
+
+    /**
+     * Is the transaction successful?
+     *
+     * @return bool
+     */
+    public function isSuccessful(): bool
+    {
+        return empty($this->getErrors());
+    }
+
+    /**
+     * @return array|null
+     */
+    public function getErrors(): ?array
+    {
+        return $this->errors;
     }
 
     /**
@@ -108,16 +103,15 @@ class Response extends AbstractResponse
      *
      * @return array|null the boleto_url, boleto_barcode and boleto_expiration_date
      */
-    public function getBoleto()
+    public function getBoleto(): ?array
     {
         if (isset($this->data['object']) && 'transaction' === $this->data['object']) {
             if ($this->data['boleto_url']) {
-                $data = array(
-                    'boleto_url' => $this->data['boleto_url'],
-                    'boleto_barcode' => $this->data['boleto_barcode'],
+                return [
+                    'boleto_url'             => $this->data['boleto_url'],
+                    'boleto_barcode'         => $this->data['boleto_barcode'],
                     'boleto_expiration_date' => $this->data['boleto_expiration_date'],
-                );
-                return $data;
+                ];
             } else {
                 return null;
             }
@@ -131,11 +125,10 @@ class Response extends AbstractResponse
      *
      * @return array|null the calculated installments
      */
-    public function getCalculatedInstallments()
+    public function getCalculatedInstallments(): ?array
     {
         if (isset($this->data['installments'])) {
-            $data = $this->data['installments'];
-            return $data;
+            return $this->data['installments'];
         } else {
             return null;
         }

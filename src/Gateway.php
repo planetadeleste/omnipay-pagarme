@@ -3,6 +3,17 @@
 namespace Omnipay\Pagarme;
 
 use Omnipay\Common\AbstractGateway;
+use Omnipay\Pagarme\Message\AuthorizeRequest;
+use Omnipay\Pagarme\Message\CaptureRequest;
+use Omnipay\Pagarme\Message\CreateCardRequest;
+use Omnipay\Pagarme\Message\CreateCustomerRequest;
+use Omnipay\Pagarme\Message\CreateHookRequest;
+use Omnipay\Pagarme\Message\FetchCustomerCardRequest;
+use Omnipay\Pagarme\Message\FetchHookRequest;
+use Omnipay\Pagarme\Message\ListCustomerCardsRequest;
+use Omnipay\Pagarme\Message\ListHookRequest;
+use Omnipay\Pagarme\Message\PurchaseRequest;
+use PagarmeCoreApiLib\Configuration;
 
 /**
  * Pagarme Gateway
@@ -75,42 +86,40 @@ use Omnipay\Common\AbstractGateway;
  * Authentication is by means of a single secret API key set as
  * the apiKey parameter when creating the gateway object.
  *
- * @see \Omnipay\Common\AbstractGateway
- * @see \Omnipay\Pagarme\Message\AbstractRequest
+ * @see  \Omnipay\Common\AbstractGateway
+ * @see  \Omnipay\Pagarme\Message\AbstractRequest
  * @link https://docs.pagar.me/
+ *
+ * @method AuthorizeRequest         authorize(array $options = [])
+ * @method PurchaseRequest          purchase(array $options = [])
+ * @method CaptureRequest           capture(array $options = [])
+ * @method CreateCardRequest        createCard(array $options = [])
+ * @method CreateCustomerRequest    createCustomer(array $options = [])
+ * @method CreateHookRequest        createHook(array $options = [])
+ * @method FetchHookRequest         fetchHook(array $options = [])
+ * @method ListHookRequest          listHook(array $options = [])
+ * @method ListCustomerCardsRequest listCustomerCards(array $options = [])
+ * @method FetchCustomerCardRequest fetchCustomerCard(array $options = [])
  */
 class Gateway extends AbstractGateway
 {
-    public function getName()
+    public function getName(): string
     {
         return 'Pagarme';
     }
-    
+
     /**
      * Get the gateway parameters
      *
      * @return array
      */
-    public function getDefaultParameters()
+    public function getDefaultParameters(): array
     {
-        return array(
+        return [
             'apiKey' => '',
-        );
+        ];
     }
-    
-    /**
-     * Get the gateway API Key
-     *
-     * Authentication is by means of a single secret API key set as
-     * the apiKey parameter when creating the gateway object.
-     *
-     * @return string
-     */
-    public function getApiKey()
-    {
-        return $this->getParameter('apiKey');
-    }
-    
+
     /**
      * Set the gateway API Key
      *
@@ -128,188 +137,63 @@ class Gateway extends AbstractGateway
      * Setting the testMode flag on this gateway has no effect.  To
      * use test mode just use your test mode API key.
      *
-     * @param string $value
+     * @param  string  $value
+     *
      * @return Gateway provides a fluent interface.
      */
-    public function setApiKey($value)
+    public function setApiKey(string $value): Gateway
     {
-        return $this->setParameter('apiKey', $value);
+        $this->setParameter('apiKey', $value);
+        $this->setAuth();
+
+        return $this;
     }
-    
-    /**
-     * Authorize Request
-     *
-     * An Authorize request is similar to a purchase request but the
-     * charge issues an authorization (or pre-authorization), and no money
-     * is transferred.  The transaction will need to be captured later
-     * in order to effect payment. Uncaptured charges expire in 5 days.
-     *
-     * Either a card object or card_id is required by default. Otherwise,
-     * you must provide a card_hash, like the ones returned by Pagarme.js
-     * or use the boleto's payment method.
-     *
-     * Pagarme gateway supports only two types of "payment_method":
-     *
-     * * credit_card
-     * * boleto
-     *
-     * Optionally, you can provide the customer details to use the antifraude
-     * feature. These details is passed using the following attributes available
-     * on credit card object:
-     *
-     * * firstName
-     * * lastName
-     * * address1 (must be in the format "street, street_number and neighborhood")
-     * * address2 (used to specify the optional parameter "street_complementary")
-     * * postcode
-     * * phone (must be in the format "DDD PhoneNumber" e.g. "19 98888 5555")
-     *
-     * @param array $parameters
-     * @return \Omnipay\Pagarme\Message\AuthorizeRequest
-     */
-    public function authorize(array $parameters = array())
+
+    public function setAuth(): void
     {
-        return $this->createRequest('\Omnipay\Pagarme\Message\AuthorizeRequest', $parameters);
+        if (!$this->getApiKey()) {
+            return;
+        }
+
+        Configuration::$basicAuthPassword = '';
+        Configuration::$basicAuthUserName = $this->getApiKey();
     }
-    
+
     /**
-     * Capture Request
+     * Get the gateway API Key
      *
-     * Use this request to capture and process a previously created authorization.
+     * Authentication is by means of a single secret API key set as
+     * the apiKey parameter when creating the gateway object.
      *
-     * @param array $parameters
-     * @return \Omnipay\Pagarme\Message\CaptureRequest
+     * @return string
      */
-    public function capture(array $parameters = array())
+    public function getApiKey(): ?string
     {
-        return $this->createRequest('\Omnipay\Pagarme\Message\CaptureRequest', $parameters);
+        return $this->getParameter('apiKey');
     }
-    
+
     /**
-     * Purchase request.
+     * @param  string  $name
+     * @param  array   $arguments
      *
-     * To charge a credit card or generate a boleto you create a new transaction
-     * object. If your API key is in test mode, the supplied card won't actually
-     * be charged, though everything else will occur as if in live mode.
-     *
-     * Either a card object or card_id is required by default. Otherwise,
-     * you must provide a card_hash, like the ones returned by Pagarme.js
-     * or use the boleto's payment method.
-     *
-     * Pagarme gateway supports only two types of "payment_method":
-     *
-     * * credit_card
-     * * boleto
-     *
-     * @see https://docs.pagar.me/capturing-card-data/
-     *
-     * Optionally, you can provide the customer details to use the antifraude
-     * feature. These details is passed using the following attributes available
-     * on credit card object:
-     *
-     * * firstName
-     * * lastName
-     * * address1 (must be in the format "street, street_number and neighborhood")
-     * * address2 (used to specify the optional parameter "street_complementary")
-     * * postcode
-     * * phone (must be in the format "DDD PhoneNumber" e.g. "19 98888 5555")
-     *
-     * @param array $parameters
-     * @return \Omnipay\Pagarme\Message\PurchaseRequest
+     * @return \Omnipay\Common\Message\AbstractRequest
      */
-    public function purchase(array $parameters = array())
+    public function __call(string $name, array $arguments = [])
     {
-        return $this->createRequest('\Omnipay\Pagarme\Message\PurchaseRequest', $parameters);
-    }
-    
-    /**
-     * Refund Request
-     *
-     * When you refund, you must specify a transaction reference.
-     *
-     * Creating a new refund will refund a transaction that has
-     * previously been created but not yet charged. Funds will
-     * be refunded to the credit that was originally authorized.
-     *
-     * @param array $parameters
-     * @return \Omnipay\Pagarme\Message\RefundRequest
-     */
-    public function refund(array $parameters = array())
-    {
-        return $this->createRequest('\Omnipay\Pagarme\Message\RefundRequest', $parameters);
-    }
-    
-    /**
-     * Void Transaction Request
-     *
-     * Pagarme does not support voiding, per se, but
-     * we treat it as a full refund.
-     *
-     * See RefundRequest for additional information
-     *
-     * @param array $parameters
-     * @return \Omnipay\Pagarme\Message\VoidRequest
-     */
-    public function void(array $parameters = array())
-    {
-        return $this->createRequest('\Omnipay\Pagarme\Message\VoidRequest', $parameters);
-    }
-    
-    /**
-     * Create Card
-     *
-     * This call can be used to create a new credit card.
-     * If a customerReference is passed in then
-     * a card is added to an existing customer.  If there is no
-     * customerReference passed in then a new customer is created.  The
-     * response in that case will then contain both a customer reference
-     * and a card reference, and is essentially the same as CreateCustomerRequest
-     *
-     * @param array $parameters
-     * @return \Omnipay\Pagarme\Message\CreateCardRequest
-     */
-    public function createCard(array $parameters = array())
-    {
-        return $this->createRequest('\Omnipay\Pagarme\Message\CreateCardRequest', $parameters);
-    }
-    
-    /**
-     * Create Customer
-     *
-     * Customer objects allow you to perform recurring charges and
-     * track multiple charges that are associated with the same customer.
-     * The API allows you to create customers.
-     *
-     * @param array $parameters
-     * @return \Omnipay\Pagarme\Message\CreateCustomerRequest
-     */
-    public function createCustomer(array $parameters = array())
-    {
-        return $this->createRequest('\Omnipay\Pagarme\Message\CreateCustomerRequest', $parameters);
-    }
-    
-    /**
-     * Pagarme Calculate Installments Request
-     *
-     * You can use Pagar.me API to calculate installments
-     * for a purchase.
-     *
-     * @param array $parameters
-     * @return \Omnipay\Pagarme\Message\InstallmentsRequest
-     */
-    public function calculateInstallments(array $parameters = array())
-    {
-        return $this->createRequest('\Omnipay\Pagarme\Message\InstallmentsRequest', $parameters);
-    }
-    
-    /**
-     * Pagarme Fetch Transaction by Id.
-     *
-     * @param array $parameters
-     * @return \Omnipay\Pagarme\Message\FetchTransactionRequest
-     */
-    public function fetchTransaction(array $parameters = array())
-    {
-        return $this->createRequest('\Omnipay\Pagarme\Message\FetchTransactionRequest', $parameters);
+        $sMethod = ucfirst($name).'Request';
+        $sClass = 'Omnipay\\Pagarme\\Message\\'.$sMethod;
+        $arOptions = empty($arguments) ? [] : $arguments[0];
+        if (!is_array($arOptions)) {
+            $arOptions = [$arOptions];
+        }
+
+        if ($this->getApiKey()) {
+            $arOptions['apiKey'] = $this->getApiKey();
+        }
+
+        $obCreateRequest = $this->createRequest($sClass, $arOptions);
+        $obCreateRequest->initialize($arOptions);
+
+        return $obCreateRequest;
     }
 }

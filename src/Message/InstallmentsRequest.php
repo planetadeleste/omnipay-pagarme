@@ -39,7 +39,7 @@ class InstallmentsRequest extends AbstractRequest
      *
      * @return float
      */
-    public function getInterestRate()
+    public function getInterestRate(): float
     {
         return $this->getParameter('interest_rate');
     }
@@ -50,7 +50,7 @@ class InstallmentsRequest extends AbstractRequest
      * @param float $value
      * @return InstallmentsRequest provides a fluent interface.
      */
-    public function setInterestRate($value)
+    public function setInterestRate($value): InstallmentsRequest
     {
         return $this->setParameter('interest_rate', $value);
     }
@@ -60,7 +60,7 @@ class InstallmentsRequest extends AbstractRequest
      *
      * @return integer
      */
-    public function getMaxInstallments()
+    public function getMaxInstallments(): int
     {
         return $this->getParameter('max_installments');
     }
@@ -71,7 +71,7 @@ class InstallmentsRequest extends AbstractRequest
      * @param integer $value
      * @return InstallmentsRequest provides a fluent interface.
      */
-    public function setMaxInstallments($value)
+    public function setMaxInstallments($value): InstallmentsRequest
     {
         return $this->setParameter('max_installments', $value);
     }
@@ -81,7 +81,7 @@ class InstallmentsRequest extends AbstractRequest
      *
      * @return integer
      */
-    public function getFreeInstallments()
+    public function getFreeInstallments(): int
     {
         return $this->getParameter('free_installments');
     }
@@ -92,7 +92,7 @@ class InstallmentsRequest extends AbstractRequest
      * @param integer $value
      * @return InstallmentsRequest provides a fluent interface.
      */
-    public function setFreeInstallments($value)
+    public function setFreeInstallments($value): InstallmentsRequest
     {
         return $this->setParameter('free_installments', $value);
     }
@@ -102,12 +102,12 @@ class InstallmentsRequest extends AbstractRequest
      *
      * @return string
      */
-    public function getHttpMethod()
+    public function getHttpMethod(): string
     {
         return 'GET';
     }
     
-    public function getQuery()
+    public function getQuery(): array
     {
         $this->validate('amount', 'interest_rate', 'max_installments');
         
@@ -121,18 +121,18 @@ class InstallmentsRequest extends AbstractRequest
         return $data;
     }
     
-    protected function getOptions()
+    protected function getOptions(): array
     {
         $options['query'] = $this->getQuery();
          
         return $options;
     }
-    public function getData()
+    public function getData(): array
     {
-        return array();
+        return [];
     }
     
-    public function getEndpoint()
+    public function getEndpoint(): string
     {
         return $this->endpoint.'transactions/calculate_installments_amount';
     }

@@ -2,45 +2,59 @@
 
 namespace Omnipay\Pagarme\Message;
 
-use Omnipay\Pagarme\CreditCard;
+use Omnipay\Common\CreditCard as Card;
 use Omnipay\Common\Message\AbstractRequest as BaseAbstractRequest;
+use Omnipay\Pagarme\Address;
+use Omnipay\Pagarme\CreditCard;
+use Omnipay\Pagarme\Helper;
+use Omnipay\Pagarme\ItemBag;
+use Omnipay\Pagarme\Traits\BoletoPaymentTrait;
+use Omnipay\Pagarme\Traits\CardPaymentTrait;
+use Omnipay\Pagarme\Traits\CashPaymentTrait;
+use Omnipay\Pagarme\Traits\PixPaymentTrait;
+use PagarmeCoreApiLib\Configuration;
 
 /**
  * Abstract Request
  *
+ * @method Response send()
+ * @method ItemBag  getItems()
  */
 abstract class AbstractRequest extends BaseAbstractRequest
 {
+    use PixPaymentTrait;
+    use CashPaymentTrait;
+    use BoletoPaymentTrait;
+    use CardPaymentTrait;
+
     /**
      * Live or Test Endpoint URL
      *
      * @var string URL
      */
-    protected $endpoint = 'https://api.pagar.me/1/';
+    protected $endpoint = 'https://api.pagar.me/core/v5/';
 
     /**
-     * Get the card.
+     * @param  array  $parameters
      *
-     * @return CreditCard
+     * @return $this|\Omnipay\Pagarme\Message\AbstractRequest
      */
-    public function getCard()
+    public function initialize(array $parameters = []): self
     {
-        return $this->getParameter('card');
+        parent::initialize($parameters);
+        $this->setAuth();
+
+        return $this;
     }
 
-    /**
-     * Sets the card.
-     *
-     * @param CreditCard $value
-     * @return AbstractRequest Provides a fluent interface
-     */
-    public function setCard($value)
+    public function setAuth()
     {
-        if ($value && !$value instanceof CreditCard) {
-            $value = new CreditCard($value);
+        if (!$this->getApiKey()) {
+            return;
         }
 
-        return $this->setParameter('card', $value);
+        Configuration::$basicAuthPassword = '';
+        Configuration::$basicAuthUserName = $this->getApiKey();
     }
 
     /**
@@ -48,20 +62,73 @@ abstract class AbstractRequest extends BaseAbstractRequest
      *
      * @return string API key
      */
-    public function getApiKey()
+    public function getApiKey(): ?string
     {
         return $this->getParameter('apiKey');
     }
 
     /**
+     * Get one parameter.
+     *
+     * @param  string  $key      Parameter key
+     * @param  mixed   $default  The default value if the parameter key does not exist
+     *
+     * @return mixed A single parameter value.
+     */
+    protected function getParameter($key, $default = null)
+    {
+        return $this->parameters->get($key, $default);
+    }
+
+    /**
+     * Sets the card.
+     *
+     * @param  CreditCard|array  $value
+     *
+     * @return $this
+     */
+    public function setCard($value): self
+    {
+        if ($value instanceof Card) {
+            $value = $value->getParameters();
+        }
+
+        if (is_array($value)) {
+            $value = new CreditCard($value);
+        }
+
+        return $this->setParameter('card', $value);
+    }
+
+    /**
+     * Set the items in this order
+     *
+     * @param  ItemBag|array  $items  An array of items in this order
+     *
+     * @return $this
+     */
+    public function setItems($items): self
+    {
+        if ($items && !$items instanceof ItemBag) {
+            $items = new ItemBag($items);
+        }
+
+        return $this->setParameter('items', $items);
+    }
+
+    /**
      * Set API key
      *
-     * @param string $value
+     * @param  string  $value
+     *
      * @return AbstractRequest provides a fluent interface.
      */
-    public function setApiKey($value)
+    public function setApiKey(string $value): AbstractRequest
     {
-        return $this->setParameter('apiKey', $value);
+        $this->setParameter('apiKey', $value);
+        $this->setAuth();
+
+        return $this;
     }
 
     /**
@@ -69,7 +136,7 @@ abstract class AbstractRequest extends BaseAbstractRequest
      *
      * @return array customer data
      */
-    public function getCustomer()
+    public function getCustomer(): ?array
     {
         return $this->getParameter('customer');
     }
@@ -77,10 +144,11 @@ abstract class AbstractRequest extends BaseAbstractRequest
     /**
      * Set Customer data
      *
-     * @param array $value
+     * @param  array  $value
+     *
      * @return AbstractRequest provides a fluent interface.
      */
-    public function setCustomer($value)
+    public function setCustomer(array $value): AbstractRequest
     {
         return $this->setParameter('customer', $value);
     }
@@ -90,7 +158,7 @@ abstract class AbstractRequest extends BaseAbstractRequest
      *
      * @return string customer reference
      */
-    public function getCustomerReference()
+    public function getCustomerReference(): ?string
     {
         return $this->getParameter('customerReference');
     }
@@ -103,64 +171,30 @@ abstract class AbstractRequest extends BaseAbstractRequest
      *
      * @return AbstractRequest provides a fluent interface.
      */
-    public function setCustomerReference($value)
+    public function setCustomerReference($value): AbstractRequest
     {
         return $this->setParameter('customerReference', $value);
     }
 
     /**
-     * Get the card hash
-     *
-     * @return string card hash
-     */
-    public function getCardHash()
-    {
-        return $this->getParameter('card_hash');
-    }
-
-    /**
-     * Set the card hash
-     *
-     * Must be a card hash like the ones returned by Pagarme.js.
-     *
-     * @return AbstractRequest provides a fluent interface.
-     */
-    public function setCardHash($value)
-    {
-        return $this->setParameter('card_hash', $value);
-    }
-
-    /**
      * Get Metadata
      *
-     * @return array metadata
+     * @return array|null metadata
      */
-    public function getMetadata()
+    public function getMetadata(): ?array
     {
         return $this->getParameter('metadata');
     }
 
     /**
      *
-     * @param array $value
-     * @return AbstractRequest provides a fluent interface.
+     * @param  array  $value
+     *
+     * @return $this
      */
-    public function setMetadata($value)
+    public function setMetadata(array $value): self
     {
         return $this->setParameter('metadata', $value);
-    }
-
-    /**
-     * Insert the API key into de array.
-     *
-     * @param array $data
-     * @return array The data with the API key to be used in all Requests
-     */
-    protected function insertApiKeyToData($data)
-    {
-        $data['api_key'] = $this->getApiKey();
-
-        return $data;
     }
 
     /**
@@ -170,27 +204,116 @@ abstract class AbstractRequest extends BaseAbstractRequest
      *
      * @return string the HTTP method
      */
-    public function getHttpMethod()
+    public function getHttpMethod(): string
     {
         return 'POST';
     }
 
+    public function getQuery(): array
+    {
+        return [];
+    }
+
+    /**
+     * @param $data
+     *
+     * @return \Omnipay\Common\Message\ResponseInterface|\Omnipay\Pagarme\Message\Response
+     */
     public function sendData($data)
     {
+        $headers = [
+            'Authorization' => 'Basic '.base64_encode($this->getApiKey().':'),
+            'Content-Type' => 'application/json'
+        ];
+
+        $sEndpoint = $this->getEndpoint();
+
+        if (($arQuery = $this->getQuery()) && !empty($arQuery)) {
+            $sEndpoint .= '?' . http_build_query($arQuery);
+        }
+
         $httpRequest = $this->httpClient->request(
             $this->getHttpMethod(),
-            $this->getEndpoint(),
-            [
-                'Content-Type' => 'application/json'
-            ],
-            json_encode($this->insertApiKeyToData($data)),
-            $this->getOptions()
+            $sEndpoint,
+            $headers,
+            json_encode($data),
         );
 
-        $payload =  json_decode($httpRequest->getBody()->getContents(), true);
+        $payload = json_decode($httpRequest->getBody()->getContents(), true);
 
+        return $this->createResponse($payload);
+    }
 
-        return $this->response = new Response($this, $payload);
+    /**
+     * @param $data
+     *
+     * @return \Omnipay\Pagarme\Message\Response
+     */
+    protected function createResponse($data)
+    {
+        return $this->response = new Response($this, $data);
+    }
+
+    /**
+     * @return array|null
+     */
+    public function getHomePhone(): ?array
+    {
+        return $this->getParameter('home_phone');
+    }
+
+    /**
+     * @param  array  $sValue
+     *
+     * @return $this
+     */
+    public function setMobilePhone(array $sValue): self
+    {
+        return $this->setParameter('mobile_phone', $sValue);
+    }
+
+    /**
+     * @return array|null
+     */
+    public function getMobilePhone(): ?array
+    {
+        return $this->getParameter('mobile_phone');
+    }
+
+    /**
+     * @param  mixed  $sValue
+     *
+     * @return $this
+     */
+    public function setCode($sValue): self
+    {
+        return $this->setParameter('code', $sValue);
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getCode(): ?string
+    {
+        return $this->getParameter('code');
+    }
+
+    /**
+     * @param  bool  $sValue
+     *
+     * @return $this
+     */
+    public function setAntifraudEnabled(bool $sValue): self
+    {
+        return $this->setParameter('antifraud_enabled', $sValue);
+    }
+
+    /**
+     * @return bool
+     */
+    public function getAntifraudEnabled(): bool
+    {
+        return (bool) $this->getParameter('antifraud_enabled');
     }
 
     /**
@@ -201,19 +324,14 @@ abstract class AbstractRequest extends BaseAbstractRequest
      *
      * @return array The query Options
      */
-    protected function getOptions()
+    protected function getOptions(): array
     {
-        return array();
+        return [];
     }
 
-    protected function getEndpoint()
+    protected function getEndpoint(): string
     {
         return $this->endpoint;
-    }
-
-    protected function createResponse($data)
-    {
-        return $this->response = new Response($this, $data);
     }
 
     /**
@@ -225,22 +343,25 @@ abstract class AbstractRequest extends BaseAbstractRequest
      * API requires.
      *
      * @return array card data
+     * @throws \Omnipay\Common\Exception\InvalidCreditCardException
+     * @throws \Omnipay\Common\Exception\InvalidRequestException
      */
-    protected function getCardData()
+    protected function getCardData(): array
     {
         $card = $this->getCard();
-        $data = array();
-
         $card->validate();
-        $data['object'] = 'card';
-        $data['card_number'] = $card->getNumber();
-        $data['card_expiration_date'] = sprintf('%02d', $card->getExpiryMonth()).(string)$card->getExpiryYear();
-        if ($card->getCvv()) {
-            $data['card_cvv'] = $card->getCvv();
-        }
-        $data['card_holder_name'] = $card->getName();
 
-        return $data;
+        return $card->getData();
+    }
+
+    /**
+     * Get the card.
+     *
+     * @return CreditCard|\Omnipay\Common\CreditCard|null
+     */
+    public function getCard()
+    {
+        return $this->getParameter('card');
     }
 
     /**
@@ -252,64 +373,78 @@ abstract class AbstractRequest extends BaseAbstractRequest
      *
      * @return array customer data
      */
-    protected function getCustomerData()
+    protected function getCustomerData(): array
     {
         $card = $this->getCard();
-        $data = array();
+        $data = [];
 
         $data['customer']['name'] = $card->getName();
         $data['customer']['email'] = $card->getEmail();
-        $data['customer']['sex'] = $card->getGender();
-        $data['customer']['born_at'] = $card->getBirthday('m-d-Y');
-        $data['customer']['document_number'] = $card->getHolderDocumentNumber();
+        $data['customer']['gender'] = $card->getGender();
+        $data['customer']['birthdate'] = $card->getBirthday('m-d-Y');
+        $data['customer']['document'] = $card->getHolderDocumentNumber();
 
-        $arrayAddress = $this->extractAddress($card->getAddress1());
-        if (! empty($arrayAddress['street'])) {
-            $data['customer']['address'] = $arrayAddress;
-            $data['customer']['address']['zipcode'] = $card->getPostcode();
-            if ($card->getAddress2()) {
-                $data['customer']['address']['neighborhood'] = $card->getAddress2();
-            }
-
-            $data['customer']['address']['city']    = $card->getCity();
-            $data['customer']['address']['state']   = $card->getState();
-            $data['customer']['address']['country'] = $card->getCountry();
+        $this->setAddressFromCard();
+        if ($this->getAddress() && ($arAddress = $this->getAddress()->getParameters())) {
+            $data['customer']['address'] = $arAddress;
         }
 
-        $arrayPhone = $this->extractDddPhone($card->getPhone());
-        if (! empty($arrayPhone['ddd'])) {
-            $data['customer']['phone'] = $arrayPhone;
+        $arrayPhone = Helper::getPhone($card->getPhone());
+        if (!empty($arrayPhone['area_code'])) {
+            $this->setHomePhone($arrayPhone);
+            $data['customer']['phones'] = ['home_phone' => $arrayPhone];
         }
 
         return $data;
     }
 
     /**
-     * Separate DDD from phone numbers in an array
-     * containing two keys:
-     *
-     * * ddd
-     * * number
-     *
-     * @param string $phoneNumber phone number with DDD (byref)
-     * @return array the Phone number and the DDD with two digits
+     * @return $this
      */
-    protected function extractDddPhone($phoneNumber)
+    protected function setAddressFromCard(): self
     {
-        $arrayPhone = array();
-        $phone = preg_replace("/[^0-9]/", "", $phoneNumber);
-        if (substr($phone, 0, 1) === "0") {
-            $arrayPhone['ddd'] = substr($phone, 1, 2);
-            $arrayPhone['number'] = substr($phone, 3);
-        } elseif (strlen($phone) < 10) {
-            $arrayPhone['ddd'] = '';
-            $arrayPhone['number'] = $phone;
-        } else {
-            $arrayPhone['ddd'] = substr($phone, 0, 2);
-            $arrayPhone['number'] = substr($phone, 2);
+        if (!$obCard = $this->getCard()) {
+            return $this;
         }
 
-        return $arrayPhone;
+        $arAddress = [
+            'line_1' => $obCard->getAddress1(),
+            'line_2' => $obCard->getAddress2(),
+            'city' => $obCard->getCity(),
+            'state' => $obCard->getState(),
+            'country' => $obCard->getCountry(),
+        ];
+
+        return $this->setAddress($arAddress);
+    }
+
+    /**
+     * @param  array  $sValue
+     *
+     * @return $this
+     */
+    public function setAddress(array $sValue): self
+    {
+        $obAddress = new Address($sValue);
+        return $this->setParameter('address', $obAddress);
+    }
+
+    /**
+     * @return Address|null
+     */
+    public function getAddress(): ?Address
+    {
+        return $this->getParameter('address');
+    }
+
+    /**
+     * @param  array  $sValue
+     *
+     * @return $this
+     */
+    public function setHomePhone(array $sValue): self
+    {
+        return $this->setParameter('home_phone', $sValue);
     }
 
     /**
@@ -323,17 +458,18 @@ abstract class AbstractRequest extends BaseAbstractRequest
      * with the information in the given order and separated
      * by commas.
      *
-     * @param string $address
+     * @param  string  $address
+     *
      * @return array containing the street, street_number and complementary
      */
-    protected function extractAddress($address)
+    protected function extractAddress(string $address): array
     {
-        $result = array();
+        $result = [];
         $explode = array_map('trim', explode(',', $address));
 
         $result['street'] = $explode[0];
-        $result['street_number'] = isset($explode[1]) ? $explode[1] : '';
-        $result['complementary'] = isset($explode[2]) ? $explode[2] : '';
+        $result['street_number'] = $explode[1] ?? '';
+        $result['complementary'] = $explode[2] ?? '';
 
         return $result;
     }

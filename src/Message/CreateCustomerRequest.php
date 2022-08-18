@@ -5,6 +5,14 @@
 
 namespace Omnipay\Pagarme\Message;
 
+use Omnipay\Common\Exception\InvalidRequestException;
+use Omnipay\Pagarme\Helper;
+use PagarmeCoreApiLib\Controllers\CustomersController;
+use PagarmeCoreApiLib\Models\CreateAddressRequest;
+use PagarmeCoreApiLib\Models\CreateCustomerRequest as CreateCustomerApiRequest;
+use PagarmeCoreApiLib\Models\CreatePhoneRequest;
+use PagarmeCoreApiLib\Models\GetCustomerResponse;
+
 /**
  * Pagarme Create Customer Request
  *
@@ -14,31 +22,7 @@ namespace Omnipay\Pagarme\Message;
  * You can retrieve individual customers as well as a list of all of
  * your customers.
  *
- * Harnessing the Omnipay's CreditCard model, we can use the
- * attributes listed below to create new customers. So it must
- * pass the parameters for the card attribute or create a CreditCard
- * Object (see the code example below). Alternatively you can pass
- * the data to the customer attribute.
- *
- * * firstName
- * * lastName
- * * address1 (must be in the format "street, street_number and complementary")
- * * address2 (used to specify the parameter "address_neighborhood")
- * * city
- * * postcode
- * * state
- * * country
- * * phone (must be in the format "DDD PhoneNumber" e.g. "19 98888 5555")
- * * email
- * * birthday
- * * gender
- *
- *
- * Provided card's attributes will be ignored by Pagarme API.
- *
  * Either a pair name|email or document_number (valid CPF or CNPJ) is required.
- *
- *
  *
  * Example:
  *
@@ -48,76 +32,226 @@ namespace Omnipay\Pagarme\Message;
  *   $gateway = Omnipay::create('Pagarme');
  *
  *   // Initialise the gateway
- *   $gateway->initialize(array(
- *       'apiKey' => 'MyApiKey',
- *   ));
+ *   $gateway->setApiKey("sk_test_....");
  *
- *   // Create a credit card object or set the card
- *   // attribute
- *   // This card can be used for testing.
- *   $customer = array(
- *               'firstName'    => 'Example',
- *               'lastName'     => 'Customer',
- *               'email'        => 'customer@example.com',
- *               'address1'     => 'Street name, Street number, Complementary',
- *               'address2'     => 'Neighborhood',
- *               'postcode'     => '05443100',
- *               'phone'        => '19 3242 8855',
- *               'holder_document_number' => '21437814860',
- *   );
+ *   $obCustomer = $obGateway->createCustomer();
+ *   $obCustomer->setCustomer([
+ *      "name"          => "Tony Stark",
+ *      "email"         => "tonystarkk@avengers.com",
+ *      "code"          => "MY_CUSTOMER_001",
+ *      "document"      => "93095135270",
+ *      "type"          => "individual",
+ *      "document_type" => "CPF",
+ *      "gender"        => "male",
+ *      "birthdate"     => "05/03/1984",
+ *   ]);
+ *   $obCustomer->setAddress([
+ *      "line_1"   => "375, Av. General Justo, Centro",
+ *      "line_2"   => "8º andar",
+ *      "zip_code" => "20021130",
+ *      "city"     => "Rio de Janeiro",
+ *      "state"    => "RJ",
+ *      "country"  => "BR"
+ *   ]);
+ *   $obCustomer->setHomePhone([
+ *      "country_code" => "55",
+ *      "area_code"    => "21",
+ *      "number"       => "000000000"
+ *   ]);
  *
- *   // Do a create customer transaction on the gateway
- *   $response = $gateway->createCustomer(array(
- *       'customer' => $customer,
- *   ))->send();
+ *   $obResponse = $obCustomer->send();
  *
- *   if ($response->isSuccessful()) {
+ *   if ($obResponse->isSuccessful()) {
  *       echo "Gateway createCustomer was successful.\n";
  *       // Find the customer ID
- *       $customer_id = $response->getCustomerReference();
+ *       $customer_id = $obResponse->id;
  *       echo "Customer ID = " . $customer_id . "\n";
- *       // Find the card ID
- *       $card_id = $response->getCardReference();
- *       echo "Card ID = " . $card_id . "\n";
  *   }
  * </code>
  *
- * @link https://docs.pagar.me/api/?shell#criando-um-cliente
+ * @link https://docs.pagar.me/reference#criar-cliente-1
+ *
+ * @method CreateCustomerResponse send()
  */
 class CreateCustomerRequest extends AbstractRequest
 {
-    public function getData()
+    /**
+     * @param mixed $sValue
+     *
+     * @return $this
+     */
+    public function setName($sValue): self
     {
-        $data = array();
-        //var_dump($this->getCustomer());
-        //die;
-        if ($this->getCustomer()) {
-            $customerArray = $this->getCustomer();
-            $this->setCard($customerArray);
+        return $this->setParameter('name', $sValue);
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getName(): ?string
+    {
+        return $this->getParameter('name');
+    }
+
+    /**
+     * @param mixed $sValue
+     *
+     * @return $this
+     */
+    public function setEmail($sValue): self
+    {
+        return $this->setParameter('email', $sValue);
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getEmail(): ?string
+    {
+        return $this->getParameter('email');
+    }
+
+    /**
+     * @param mixed $sValue
+     *
+     * @return $this
+     */
+    public function setDocument($sValue): self
+    {
+        return $this->setParameter('document', $sValue);
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getDocument(): ?string
+    {
+        return $this->getParameter('document');
+    }
+
+    /**
+     * Set document type. Values: PASSPORT , CPF, CNPJ
+     *
+     * @param mixed $sValue
+     *
+     * @return $this
+     * @throws \Omnipay\Common\Exception\InvalidRequestException
+     */
+    public function setDocumentType($sValue): self
+    {
+        $sValue = strtoupper($sValue);
+        $arValid = ['PASSPORT', 'CPF', 'CNPJ'];
+        if (!in_array($sValue, $arValid)) {
+            $sMessage = sprintf("Invalid document type %s. Must be one of %s", $sValue, join(", ", $arValid));
+            throw new InvalidRequestException($sMessage);
         }
-        
-        if ($this->getCard()) {
-            $customer = $this->getCustomerData();
-            $data = $customer['customer'];
-            if (isset($data['address'])) {
-                $data['address']['city'] = $this->getCard()->getCity();
-                $data['address']['state'] = $this->getCard()->getState();
-                $data['address']['country'] = $this->getCard()->getCountry();
+
+        return $this->setParameter('document_type', $sValue);
+    }
+
+    /**
+     * @return string
+     */
+    public function getDocumentType(): string
+    {
+        return $this->getParameter('document_type');
+    }
+
+    /**
+     * @param mixed $sValue
+     *
+     * @return $this
+     */
+    public function setType($sValue): self
+    {
+        return $this->setParameter('type', $sValue);
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getType(): ?string
+    {
+        return $this->getParameter('type');
+    }
+
+
+    /**
+     * @return array
+     * @throws \Omnipay\Common\Exception\InvalidRequestException
+     * @throws \Omnipay\Pagarme\Exception\InvalidAddressException
+     */
+    public function getData(): array
+    {
+        $data = [];
+
+        if ($arCustomer = $this->getCustomer()) {
+            Helper::initialize($this, $arCustomer);
+            $data = array_merge($data, $arCustomer);
+            $this->setCard($arCustomer);
+        }
+
+        if ($obAddress = $this->getAddress()) {
+            $obAddress->validate();
+            $data['address'] = $obAddress->getParameters();
+        }
+
+        if ($arHomePhone = $this->getHomePhone()) {
+            $data['phones'] = ['home_phone' => $arHomePhone];
+        }
+
+        if ($arMobilePhone = $this->getMobilePhone()) {
+            if (isset($data['phones'])) {
+                $data['phones']['mobile_phone'] = $arMobilePhone;
+            } else {
+                $data['phones'] = ['mobile_phone' => $arMobilePhone];
             }
         }
-        
+
         // Validate Required Attributes
-        if (! isset($data['document_number'])) {
-            if (! (isset($data['email']) && (isset($data['name'])))) {
-                $this->validate('document_number');
-            }
-        }
-        
+        $this->validate('document', 'name', 'email', 'document_type');
+
         return $data;
     }
 
-    public function getEndpoint()
+    /**
+     * @param array $data
+     *
+     * @return \Omnipay\Pagarme\Message\CreateCustomerResponse
+     * @throws \PagarmeCoreApiLib\APIException
+     */
+    public function sendData($data): CreateCustomerResponse
     {
-        return $this->endpoint . 'customers';
+        $obCustomer = CustomersController::getInstance();
+        $obCustomerRequest = new CreateCustomerApiRequest();
+
+        // Set address
+        if (($arAddress = Helper::arrayGet($data, 'address')) && is_array($arAddress)) {
+            $obAddress = new CreateAddressRequest();
+            Helper::arrayToParams($obAddress, $arAddress);
+            $data['address'] = $obAddress;
+        }
+
+        // Set phones
+        if (($arPhones = Helper::arrayGet($data, 'phones')) && is_array($arPhones)) {
+            foreach ($arPhones as $sPhone => $arPhoneData) {
+                $obPhones = new CreatePhoneRequest();
+                Helper::arrayToParams($obPhones, $arPhoneData);
+                $data['phones'][$sPhone] = $obPhones;
+            }
+        }
+
+        // Set params
+        Helper::arrayToParams($obCustomerRequest, $data);
+
+        /** @var GetCustomerResponse $obResponse */
+        $obResponse = $obCustomer->createCustomer($obCustomerRequest);
+
+        return new CreateCustomerResponse($this, $obResponse->jsonSerialize());
+    }
+
+    public function getEndpoint(): string
+    {
+        return $this->endpoint.'customers';
     }
 }

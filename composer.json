@@ -1,7 +1,7 @@
 {
-    "name": "descubraomundo/omnipay-pagarme",
-    "description": "Pagarme driver for the Omnipay payment processing library",
-    "keywords": [
+    "name":"planetadeleste/omnipay-pagarme",
+    "description":"Pagarme driver for the Omnipay payment processing library",
+    "keywords":[
         "gateway",
         "merchant",
         "omnipay",
@@ -9,38 +9,40 @@
         "payment",
         "pagarme"
     ],
-    "homepage": "https://github.com/descubraomundo/omnipay-pagarme",
-    "license": "MIT",
-    "authors": [
+    "homepage":"https://github.com/planetadeleste/omnipay-pagarme",
+    "license":"MIT",
+    "authors":[
         {
-            "name": "descubraomundo",
-            "email": "geeks@descubraomundo.com",
-            "homepage": "https://www.descubraomundo.com"
+            "name":"descubraomundo",
+            "email":"geeks@descubraomundo.com",
+            "homepage":"https://www.descubraomundo.com"
         }
     ],
-    "require": {
-        "omnipay/common": "^3.0"
+    "require":{
+        "league/omnipay":"^3.0",
+        "pagarme/pagarmecoreapi":"^v5.2.0",
+        "matomo/device-detector": "^5.0.1"
     },
-    "require-dev": {
-        "omnipay/tests": "~3.0",
-        "squizlabs/php_codesniffer": "^3",
-        "phpro/grumphp": "^0.14"
+    "require-dev":{
+        "omnipay/tests":"~3.0",
+        "squizlabs/php_codesniffer":"^3",
+        "phpro/grumphp":"^0.14"
     },
-    "autoload": {
-        "psr-4": {
-            "Omnipay\\Pagarme\\": "src"
+    "autoload":{
+        "psr-4":{
+            "Omnipay\\Pagarme\\":"src"
         }
     },
-    "autoload-dev": {
-        "psr-4": {
-            "League\\Pagarme\\Test\\": "tests"
+    "autoload-dev":{
+        "psr-4":{
+            "League\\Pagarme\\Test\\":"tests"
         }
     },
-    "scripts": {
-        "test": "phpunit",
-        "check-style": "phpcs -p --standard=PSR2 src/",
-        "fix-style": "phpcbf -p --standard=PSR2 src/"
+    "scripts":{
+        "test":"phpunit",
+        "check-style":"phpcs -p --standard=PSR2 src/",
+        "fix-style":"phpcbf -p --standard=PSR2 src/"
     },
-    "minimum-stability": "dev",
-    "prefer-stable": true
+    "minimum-stability":"dev",
+    "prefer-stable":true
 }
