@@ -31,6 +31,14 @@ class Response extends AbstractResponse
     }
 
     /**
+     * @return string|null
+     */
+    public function getCustomerReference(): ?string
+    {
+        return $this->customer->id ?? null;
+    }
+
+    /**
      * Get a card reference, for createCard or createCustomer requests.
      *
      * @return string|null

@@ -42,11 +42,6 @@ class OrderResponse extends Response
         return $this->id;
     }
 
-    public function getCustomerReference(): ?string
-    {
-        return $this->customer ? $this->customer->id : null;
-    }
-
     public function getTransactionReference(): ?string
     {
         return ($obTransaction = $this->getLastTransaction()) ? $obTransaction->gatewayId : null;

@@ -13,6 +13,7 @@ use Omnipay\Pagarme\Message\FetchHookRequest;
 use Omnipay\Pagarme\Message\ListCustomerCardsRequest;
 use Omnipay\Pagarme\Message\ListHookRequest;
 use Omnipay\Pagarme\Message\PurchaseRequest;
+use Omnipay\Pagarme\Message\SubscribeRequest;
 use PagarmeCoreApiLib\Configuration;
 
 /**
@@ -93,6 +94,7 @@ use PagarmeCoreApiLib\Configuration;
  * @method AuthorizeRequest         authorize(array $options = [])
  * @method PurchaseRequest          purchase(array $options = [])
  * @method CaptureRequest           capture(array $options = [])
+ * @method SubscribeRequest         subscribe(array $options = [])
  * @method CreateCardRequest        createCard(array $options = [])
  * @method CreateCustomerRequest    createCustomer(array $options = [])
  * @method CreateHookRequest        createHook(array $options = [])
@@ -137,7 +139,7 @@ class Gateway extends AbstractGateway
      * Setting the testMode flag on this gateway has no effect.  To
      * use test mode just use your test mode API key.
      *
-     * @param  string  $value
+     * @param string $value
      *
      * @return Gateway provides a fluent interface.
      */
@@ -173,8 +175,8 @@ class Gateway extends AbstractGateway
     }
 
     /**
-     * @param  string  $name
-     * @param  array   $arguments
+     * @param string $name
+     * @param array  $arguments
      *
      * @return \Omnipay\Common\Message\AbstractRequest
      */

@@ -150,7 +150,31 @@ class AuthorizeRequest extends AbstractRequest
 
         // Add payment method
         $sPaymentMethod = strtolower($this->getPaymentMethod());
+        $arPayment = [
+            'payment_method' => $sPaymentMethod,
+            $sPaymentMethod  => $this->getPaymentMethodData($sPaymentMethod)
+        ];
+        $data['payments'] = [$arPayment];
+
+        // Add shipping
+        if ($this->getRecipientName() && $this->getShippingType() && $this->getShippingAddress()) {
+            $data['shipping'] = $this->getShippingData();
+        }
+
+        return $data;
+    }
+
+    /**
+     * @param string $sPaymentMethod
+     *
+     * @return array
+     * @throws \Omnipay\Common\Exception\InvalidCreditCardException
+     * @throws \Omnipay\Common\Exception\InvalidRequestException
+     */
+    protected function getPaymentMethodData(string $sPaymentMethod): array
+    {
         $arPaymentMethod = [];
+
         switch ($sPaymentMethod) {
             case 'boleto':
                 $arPaymentMethod = [
@@ -194,18 +218,8 @@ class AuthorizeRequest extends AbstractRequest
                 }
                 break;
         }
-        $arPayment = [
-            'payment_method' => $sPaymentMethod,
-            $sPaymentMethod  => $arPaymentMethod
-        ];
-        $data['payments'] = [$arPayment];
 
-        // Add shipping
-        if ($this->getRecipientName() && $this->getShippingType() && $this->getShippingAddress()) {
-            $data['shipping'] = $this->getShippingData();
-        }
-
-        return $data;
+        return $arPaymentMethod;
     }
 
     /**
@@ -230,7 +244,7 @@ class AuthorizeRequest extends AbstractRequest
      * @return \Omnipay\Pagarme\Message\OrderResponse
      * @throws \PagarmeCoreApiLib\APIException
      */
-    public function sendData($data): OrderResponse
+    public function sendData($data): Response
     {
 //        $data = array_filter($data);
 
@@ -276,7 +290,6 @@ class AuthorizeRequest extends AbstractRequest
         } catch (APIException $ex) {
             $sResponseBody = $ex->getContext()->getResponse()->getRawBody();
             $arResponse = json_decode($sResponseBody, true);
-            debug($arResponse);
 
             return new OrderResponse($this, $arResponse);
         }
